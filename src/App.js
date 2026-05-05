@@ -1,6 +1,6 @@
 import { useState, useRef } from "react";
 
-const GROQ_API_KEY = "gsk_coloca_aqui_a_tua_chave_groq";
+const GROQ_API_KEY = "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";
 const GROQ_MODEL = "llama3-70b-8192";
 
 const PLANS = [
