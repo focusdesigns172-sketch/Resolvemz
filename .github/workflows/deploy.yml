@@ -9,24 +9,18 @@ jobs:
   deploy:
     runs-on: ubuntu-latest
     steps:
-      - name: Checkout
-        uses: actions/checkout@v4
-        with:
-          persist-credentials: true
-          fetch-depth: 0
-      - name: Setup Node
-        uses: actions/setup-node@v4
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
         with:
           node-version: '20'
-      - name: Install
-        run: npm install
-      - name: Build
-        run: CI=false npm run build
+      - run: npm install
+      - run: CI=false npm run build
         env:
           REACT_APP_GROQ_API_KEY: ${{ secrets.REACT_APP_GROQ_API_KEY }}
-      - name: Deploy to GitHub Pages
-        uses: peaceiris/actions-gh-pages@v3
-        with:
-          github_token: ${{ secrets.GITHUB_TOKEN }}
-          publish_dir: ./build
-          force_orphan: true
+      - name: Deploy
+        run: |
+          git config user.name "github-actions"
+          git config user.email "github-actions@github.com"
+          git add build -f
+          git commit -m "Deploy ResolveMZ"
+          git subtree push --prefix build origin gh-pages
