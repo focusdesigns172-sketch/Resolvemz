@@ -33,38 +33,71 @@ const RANKING = [
 async function solveWithGroq(problem, topic) {
   const prompt = `És um professor de matemática e física para estudantes do ensino secundário de Moçambique.
 Resolve este problema passo a passo de forma didática e clara em português.
-Responde APENAS em JSON válido, sem texto extra:
-{
-  "titulo": "nome do tipo de problema",
-  "topico": "área (ex: Álgebra, Cinemática)",
-  "passos": [
-    {"numero": 1, "titulo": "nome do passo", "conteudo": "explicação detalhada", "formula": "fórmula se existir"}
-  ],
-  "resposta_final": "resposta concisa e clara",
-  "dica": "dica motivacional para o aluno",
-  "pontos": 10
-}
+IMPORTANTE: Responde APENAS com JSON puro, sem markdown, sem backticks, sem texto extra antes ou depois.
+Formato exacto:
+{"titulo":"nome do problema","topico":"área","passos":[{"numero":1,"titulo":"nome do passo","conteudo":"explicação detalhada","formula":"fórmula aqui ou vazio"}],"resposta_final":"resposta clara e completa","dica":"mensagem motivacional","pontos":10}
+
 Problema${topic ? ` de ${topic}` : ""}: ${problem}`;
 
-  const response = await fetch("https://api.groq.com/openai/v1/chat/completions", {
-    method: "POST",
-    headers: {
-      "Content-Type": "application/json",
-      "Authorization": `Bearer ${GROQ_API_KEY}`,
-    },
-    body: JSON.stringify({
-      model: GROQ_MODEL,
-      messages: [{ role: "user", content: prompt }],
-      temperature: 0.3,
-      max_tokens: 1500,
-    }),
-  });
-  const data = await response.json();
-  const text = data.choices?.[0]?.message?.content || "";
   try {
-    return JSON.parse(text.replace(/```json|```/g, "").trim());
-  } catch {
-    return { titulo: "Resolução", topico: topic || "Matemática", passos: [{ numero: 1, titulo: "Solução", conteudo: text, formula: "" }], resposta_final: "Ver solução acima", dica: "Continue a estudar! 💪", pontos: 5 };
+    const response = await fetch("https://api.groq.com/openai/v1/chat/completions", {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+        "Authorization": `Bearer ${GROQ_API_KEY}`,
+      },
+      body: JSON.stringify({
+        model: GROQ_MODEL,
+        messages: [
+          {
+            role: "system",
+            content: "Responds only with valid JSON. No markdown. No backticks. No extra text."
+          },
+          { role: "user", content: prompt }
+        ],
+        temperature: 0.1,
+        max_tokens: 1500,
+      }),
+    });
+
+    if (!response.ok) {
+      throw new Error("API error: " + response.status);
+    }
+
+    const data = await response.json();
+    const text = data.choices?.[0]?.message?.content || "";
+    
+    // Limpar o texto de qualquer markdown
+    const clean = text
+      .replace(/```json/g, "")
+      .replace(/```/g, "")
+      .replace(/^\s*\n/gm, "")
+      .trim();
+    
+    const parsed = JSON.parse(clean);
+    
+    // Garantir que passos existe e tem conteúdo
+    if (!parsed.passos || parsed.passos.length === 0) {
+      parsed.passos = [{ numero: 1, titulo: "Solução", conteudo: clean, formula: "" }];
+    }
+    
+    return parsed;
+
+  } catch (error) {
+    console.error("Erro Groq:", error);
+    return {
+      titulo: "Erro na resolução",
+      topico: topic || "Matemática",
+      passos: [{ 
+        numero: 1, 
+        titulo: "Erro", 
+        conteudo: "Não foi possível resolver. Verifica a tua ligação e tenta novamente.", 
+        formula: "" 
+      }],
+      resposta_final: "Tenta novamente",
+      dica: "Verifica a tua ligação à internet!",
+      pontos: 0,
+    };
   }
 }
 
